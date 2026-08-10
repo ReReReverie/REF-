@@ -14,18 +14,18 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: "REF? — The Internet's Meme Referee",
-    description: "Upload the evidence and let the meme referee decide: no foul, yellow card, or straight red.",
+    description: "Submit the evidence, add the context, and let the meme referee rule on suspicious levels of game.",
     openGraph: {
       title: "REF, IS THIS ALLOWED?",
-      description: "Drop the evidence. Get the official meme ruling.",
+      description: "Drop the receipts. Put suspicious levels of rizz under review.",
       type: "website",
-      images: [{ url: `${origin}/og.png`, width: 1536, height: 1024, alt: "REF? meme referee" }],
+      images: [{ url: `${origin}/og-rizz.png`, width: 1536, height: 1024, alt: "REF? — rizz under review" }],
     },
     twitter: {
       card: "summary_large_image",
       title: "REF, IS THIS ALLOWED?",
-      description: "Drop the evidence. Get the official meme ruling.",
-      images: [`${origin}/og.png`],
+      description: "Drop the receipts. Put suspicious levels of rizz under review.",
+      images: [`${origin}/og-rizz.png`],
     },
   };
 }

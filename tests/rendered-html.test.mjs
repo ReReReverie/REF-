@@ -16,7 +16,7 @@ async function render() {
   );
 }
 
-test("server-renders the meme referee product", async () => {
+test("server-renders the context-aware meme referee", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
@@ -24,12 +24,12 @@ test("server-renders the meme referee product", async () => {
   const html = await response.text();
   assert.match(html, /<title>REF\? — The Internet(?:&#x27;|')s Meme Referee<\/title>/i);
   assert.match(html, /REF, IS THIS/);
-  assert.match(html, /Submit the evidence/);
-  assert.match(html, /Upload evidence to wake the officials/);
-  assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
+  assert.match(html, /Add a caption for context/);
+  assert.match(html, /GAME RECOGNIZES GAME/);
+  assert.doesNotMatch(html, /studies every pixel|enhancing pixels|codex-preview|react-loading-skeleton/i);
 });
 
-test("ships finished metadata and removes starter preview", async () => {
+test("ships the finished caption workflow and social metadata", async () => {
   const [layout, page, packageJson] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
@@ -37,9 +37,10 @@ test("ships finished metadata and removes starter preview", async () => {
   ]);
 
   assert.match(layout, /REF\? — The Internet's Meme Referee/);
-  assert.match(layout, /\/og\.png/);
-  assert.match(page, /accept="image\/png,image\/jpeg,image\/webp,image\/gif"/);
-  assert.match(page, /MAX_FILE_SIZE/);
+  assert.match(layout, /\/og-rizz\.png/);
+  assert.match(page, /maxLength=\{MAX_CAPTION_LENGTH\}/);
+  assert.match(page, /cryptoRandom\(\)/);
+  assert.match(page, /FICTIONAL VAR NOTES/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   await assert.rejects(access(new URL("../app/_sites-preview/SkeletonPreview.tsx", root)));
 });

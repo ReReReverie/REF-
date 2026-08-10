@@ -1,81 +1,33 @@
 "use client";
 
 import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  MAX_CAPTION_LENGTH,
+  cryptoRandom,
+  makeVerdict,
+  type Verdict,
+  type VerdictKey,
+} from "./referee";
 
-type VerdictKey = "no-foul" | "yellow" | "red";
 type ReviewPhase = "idle" | "checking" | "deliberating" | "complete";
-
-type Verdict = {
-  key: VerdictKey;
-  label: string;
-  shortLabel: string;
-  ruling: string;
-  color: string;
-};
 
 type Incident = {
   id: string;
   file: File;
   url: string;
+  caption: string;
+  reviewCount: number;
   verdict?: Verdict;
 };
 
 const MAX_IMAGES = 6;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-const verdicts: Record<VerdictKey, Omit<Verdict, "ruling"> & { rulings: string[] }> = {
-  "no-foul": {
-    key: "no-foul",
-    label: "NO FOUL",
-    shortLabel: "Play on",
-    color: "#23d68a",
-    rulings: [
-      "After review, there is simply not enough drama. Play on.",
-      "Clean challenge. The referee has seen far worse in the group chat.",
-      "No offense detected. The internet may continue as normal.",
-    ],
-  },
-  yellow: {
-    key: "yellow",
-    label: "YELLOW CARD",
-    shortLabel: "Caution",
-    color: "#f7df32",
-    rulings: [
-      "Reckless levels of audacity. A warning has been issued.",
-      "Questionable behavior, but not quite a sending-off offense.",
-      "The vibes are suspicious. Proceed carefully from here.",
-    ],
-  },
-  red: {
-    key: "red",
-    label: "RED CARD",
-    shortLabel: "Sent off",
-    color: "#ff4e45",
-    rulings: [
-      "Unacceptable scenes. Straight red — no appeal, no notes.",
-      "A serious meme offense. Please leave the timeline immediately.",
-      "The replay somehow made it worse. Off you go.",
-    ],
-  },
+const cardMeanings: Record<VerdictKey, string> = {
+  "no-foul": "GAME RECOGNIZES GAME",
+  yellow: "SUSPICIOUS RIZZ",
+  red: "ILLEGALLY OUTSIDE HIS LEAGUE",
 };
-
-function makeVerdict(file: File): Verdict {
-  const source = `${file.name}-${file.size}-${file.lastModified}`;
-  let score = 0;
-  for (let index = 0; index < source.length; index += 1) {
-    score = (score * 31 + source.charCodeAt(index)) >>> 0;
-  }
-
-  const key: VerdictKey = score % 10 < 5 ? "no-foul" : score % 10 < 8 ? "yellow" : "red";
-  const template = verdicts[key];
-  return {
-    key,
-    label: template.label,
-    shortLabel: template.shortLabel,
-    color: template.color,
-    ruling: template.rulings[score % template.rulings.length],
-  };
-}
 
 export default function Home() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -99,6 +51,11 @@ export default function Home() {
     };
   }, []);
 
+  function stopReviewTimers() {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+  }
+
   function addFiles(files: FileList | File[]) {
     const availableSlots = MAX_IMAGES - incidents.length;
     if (availableSlots <= 0) {
@@ -116,6 +73,7 @@ export default function Home() {
       return;
     }
 
+    stopReviewTimers();
     const additions = validFiles.slice(0, availableSlots).map((file, index) => {
       const url = URL.createObjectURL(file);
       objectUrls.current.push(url);
@@ -123,6 +81,8 @@ export default function Home() {
         id: `${file.name}-${file.lastModified}-${Date.now()}-${index}`,
         file,
         url,
+        caption: "",
+        reviewCount: 0,
       };
     });
 
@@ -149,21 +109,42 @@ export default function Home() {
     addFiles(event.dataTransfer.files);
   }
 
+  function updateCaption(event: ChangeEvent<HTMLTextAreaElement>) {
+    if (!activeIncident) return;
+
+    const caption = event.target.value.slice(0, MAX_CAPTION_LENGTH);
+    stopReviewTimers();
+    setIncidents((current) =>
+      current.map((incident) =>
+        incident.id === activeIncident.id ? { ...incident, caption, verdict: undefined } : incident,
+      ),
+    );
+    setPhase("idle");
+  }
+
   function reviewIncident() {
     if (!activeIncident || phase === "checking" || phase === "deliberating") return;
-    timers.current.forEach(clearTimeout);
+
+    stopReviewTimers();
+    const incidentId = activeIncident.id;
+    const caption = activeIncident.caption;
+    const previousKey = activeIncident.verdict?.key;
+    const randomValue = cryptoRandom();
     setPhase("checking");
 
     timers.current = [
       setTimeout(() => setPhase("deliberating"), 850),
       setTimeout(() => {
-        const verdict = makeVerdict(activeIncident.file);
+        const verdict = makeVerdict(caption, randomValue, previousKey);
         setIncidents((current) =>
           current.map((incident) =>
-            incident.id === activeIncident.id ? { ...incident, verdict } : incident,
+            incident.id === incidentId
+              ? { ...incident, verdict, reviewCount: incident.reviewCount + 1 }
+              : incident,
           ),
         );
         setPhase("complete");
+        timers.current = [];
       }, 2100),
     ];
   }
@@ -175,6 +156,7 @@ export default function Home() {
       objectUrls.current = objectUrls.current.filter((url) => url !== removed.url);
     }
 
+    stopReviewTimers();
     const remaining = incidents.filter((incident) => incident.id !== id);
     setIncidents(remaining);
     setActiveId((current) => (current === id ? remaining[0]?.id ?? null : current));
@@ -183,6 +165,7 @@ export default function Home() {
   }
 
   function selectIncident(id: string) {
+    stopReviewTimers();
     setActiveId(id);
     setPhase(incidents.find((incident) => incident.id === id)?.verdict ? "complete" : "idle");
     setError("");
@@ -190,6 +173,7 @@ export default function Home() {
 
   const isReviewing = phase === "checking" || phase === "deliberating";
   const completedCount = incidents.filter((incident) => incident.verdict).length;
+  const reviewStage = phase === "checking" ? "READING CASE NOTES" : "MEASURING RIZZ DIFFERENTIAL";
 
   return (
     <main>
@@ -207,12 +191,17 @@ export default function Home() {
           <p className="eyebrow"><span>01</span> YOUR INTERNET REFEREE</p>
           <h1>REF, IS THIS<br /><em>ALLOWED?</em></h1>
           <p className="intro">
-            Drop the evidence. Our wildly overconfident meme referee will review the incident and make the only call that matters.
+            Drop the evidence—even if it does not contain people. Add a caption for context, then let our wildly overconfident meme referee make the only call that matters.
           </p>
           <div className="legend" aria-label="Possible referee decisions">
             <span><i className="dot green" /> NO FOUL</span>
             <span><i className="dot yellow" /> YELLOW</span>
             <span><i className="dot red" /> RED</span>
+          </div>
+          <div className="card-meanings" aria-label="Card meanings">
+            <span><i className="dot green" /><strong>NO FOUL</strong><small>GAME RECOGNIZES GAME</small></span>
+            <span><i className="dot yellow" /><strong>YELLOW</strong><small>SUSPICIOUS RIZZ</small></span>
+            <span><i className="dot red" /><strong>RED</strong><small>ILLEGALLY OUTSIDE HIS LEAGUE</small></span>
           </div>
         </div>
 
@@ -246,6 +235,7 @@ export default function Home() {
                 <p className="drop-kicker">SHOW US WHAT HAPPENED</p>
                 <h3>Drop the footage here</h3>
                 <p>or choose up to {MAX_IMAGES} images from your device</p>
+                <p className="drop-context">Evidence may not contain people. A caption gives the referee context.</p>
                 <button className="primary-button" type="button" onClick={() => inputRef.current?.click()}>
                   CHOOSE IMAGES <span aria-hidden="true">↗</span>
                 </button>
@@ -259,6 +249,7 @@ export default function Home() {
                   <span>{activeIncident?.file.name}</span>
                 </div>
                 <div className="image-stage">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- Blob URLs are private browser previews and cannot use the Next.js image optimizer. */}
                   {activeIncident && <img src={activeIncident.url} alt={`Uploaded incident: ${activeIncident.file.name}`} />}
                   <span className="corner corner-tl" aria-hidden="true" />
                   <span className="corner corner-tr" aria-hidden="true" />
@@ -267,7 +258,7 @@ export default function Home() {
                   {isReviewing && (
                     <div className="review-overlay" role="status" aria-live="polite">
                       <div className="scan-line" />
-                      <span>{phase === "checking" ? "CHECKING ALL ANGLES" : "REFEREE DELIBERATING"}</span>
+                      <span>{reviewStage}</span>
                     </div>
                   )}
                 </div>
@@ -280,6 +271,7 @@ export default function Home() {
                       type="button"
                       aria-label={`Review incident ${index + 1}: ${incident.file.name}`}
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element -- Blob URLs are private browser previews and cannot use the Next.js image optimizer. */}
                       <img src={incident.url} alt="" />
                       <span>{String(index + 1).padStart(2, "0")}</span>
                       {incident.verdict && <i style={{ background: incident.verdict.color }} />}
@@ -289,6 +281,32 @@ export default function Home() {
                     <button className="add-more" type="button" onClick={() => inputRef.current?.click()} aria-label="Add more images">+</button>
                   )}
                 </div>
+
+                {activeIncident && (
+                  <div className="caption-panel">
+                    <div className="caption-heading">
+                      <div>
+                        <p className="caption-kicker">CASE NOTES</p>
+                        <label htmlFor="incident-caption">Give the referee context</label>
+                      </div>
+                      <span>OPTIONAL</span>
+                    </div>
+                    <textarea
+                      id="incident-caption"
+                      value={activeIncident.caption}
+                      onChange={updateCaption}
+                      maxLength={MAX_CAPTION_LENGTH}
+                      rows={3}
+                      placeholder="What should the ref know about this incident?"
+                      aria-describedby="caption-help caption-count"
+                    />
+                    <div className="caption-footer">
+                      <span id="caption-help">Evidence may not contain people; a caption gives context.</span>
+                      <span id="caption-count" aria-live="polite">{activeIncident.caption.length}/{MAX_CAPTION_LENGTH}</span>
+                    </div>
+                  </div>
+                )}
+
                 <button className="remove-link" type="button" onClick={() => activeIncident && removeIncident(activeIncident.id)}>
                   REMOVE THIS INCIDENT
                 </button>
@@ -318,9 +336,18 @@ export default function Home() {
                 <div className={`card card-${activeIncident.verdict.key}`} aria-hidden="true">
                   {activeIncident.verdict.key === "no-foul" ? <span>✓</span> : null}
                 </div>
-                <p className="verdict-kicker">AFTER CAREFUL REVIEW</p>
+                <p className="verdict-kicker">AFTER CAREFUL REVIEW · CALL {String(activeIncident.reviewCount).padStart(2, "0")}</p>
                 <h3>{activeIncident.verdict.label}</h3>
+                <p className="verdict-short">{activeIncident.verdict.shortLabel}</p>
+                <p className="card-meaning">{cardMeanings[activeIncident.verdict.key]}</p>
                 <p className="ruling">{activeIncident.verdict.ruling}</p>
+                <div className="var-notes" aria-label="Fictional VAR notes">
+                  <p className="var-notes-title">FICTIONAL VAR NOTES</p>
+                  <ul>
+                    <li><span>VAR 01</span>{activeIncident.verdict.notes[0]}</li>
+                    <li><span>VAR 02</span>{activeIncident.verdict.notes[1]}</li>
+                  </ul>
+                </div>
                 <button className="review-button inverse" type="button" onClick={reviewIncident}>
                   REVIEW AGAIN <span aria-hidden="true">↻</span>
                 </button>
@@ -330,12 +357,12 @@ export default function Home() {
                 <div className={`ref-avatar ${isReviewing ? "thinking" : ""}`} aria-hidden="true">
                   <span>{isReviewing ? "…" : "!"}</span>
                 </div>
-                <p>{isReviewing ? "VAR CHECK IN PROGRESS" : "EVIDENCE RECEIVED"}</p>
+                <p>{isReviewing ? "CHECKING TRANSFER RECORDS" : "EVIDENCE RECEIVED"}</p>
                 <h3>{isReviewing ? "Hold your outrage." : "Ready for the\nofficial call?"}</h3>
                 <div className="status-track" aria-hidden="true">
                   <i className="done" /><b className={isReviewing ? "done" : ""} /><i className={phase === "deliberating" ? "done" : ""} />
                 </div>
-                <small>{isReviewing ? "Enhancing pixels. Consulting absolutely nobody." : "One click. Three possible outcomes. Zero appeals."}</small>
+                <small>{isReviewing ? "Reading case notes, checking transfer records, and measuring the rizz differential." : "Add context if you want. One click. Three possible outcomes. Zero appeals."}</small>
                 <button className="review-button" type="button" onClick={reviewIncident} disabled={isReviewing}>
                   {isReviewing ? "REVIEWING…" : "REVIEW THE INCIDENT"} <span aria-hidden="true">→</span>
                 </button>
@@ -352,8 +379,8 @@ export default function Home() {
           <p>A highly serious process for deeply unserious disputes.</p>
         </div>
         <div className="steps">
-          <article><span>01</span><strong>SUBMIT</strong><p>Upload the screenshot, photo, fit check, bad take, or questionable evidence.</p></article>
-          <article><span>02</span><strong>REVIEW</strong><p>Our meme VAR studies every pixel with theatrical and unnecessary intensity.</p></article>
+          <article><span>01</span><strong>SUBMIT</strong><p>Upload the screenshot, photo, fit check, bad take, or any evidence—even when no people are in frame.</p></article>
+          <article><span>02</span><strong>REVIEW</strong><p>Read the case notes, check transfer records, and measure the rizz differential with theatrical intensity.</p></article>
           <article><span>03</span><strong>SETTLE IT</strong><p>Receive a no-foul, yellow-card, or straight-red ruling. The call stands.</p></article>
         </div>
       </section>
