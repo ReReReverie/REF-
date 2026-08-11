@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import {
   MAX_CAPTION_LENGTH,
   cryptoRandom,
@@ -8,6 +9,8 @@ import {
   type Verdict,
   type VerdictKey,
 } from "./referee";
+import AnalyticsConsentControl from "./analytics-consent";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 type ReviewPhase = "idle" | "checking" | "deliberating" | "complete";
 
@@ -89,6 +92,7 @@ export default function Home() {
     setIncidents((current) => [...current, ...additions]);
     setActiveId(additions[0].id);
     setPhase("idle");
+    trackAnalyticsEvent("evidence_added", { image_count: additions.length });
     setError(
       validFiles.length < candidates.length
         ? "Some files were skipped because they were not supported images or exceeded 10 MB."
@@ -129,13 +133,21 @@ export default function Home() {
     const incidentId = activeIncident.id;
     const caption = activeIncident.caption;
     const previousKey = activeIncident.verdict?.key;
+    const nextReviewCount = activeIncident.reviewCount + 1;
     const randomValue = cryptoRandom();
+    if (previousKey) {
+      trackAnalyticsEvent("review_again", { previous_verdict: previousKey });
+    }
     setPhase("checking");
 
     timers.current = [
       setTimeout(() => setPhase("deliberating"), 850),
       setTimeout(() => {
         const verdict = makeVerdict(caption, randomValue, previousKey);
+        trackAnalyticsEvent("verdict_completed", {
+          verdict: verdict.key,
+          review_count: nextReviewCount,
+        });
         setIncidents((current) =>
           current.map((incident) =>
             incident.id === incidentId
@@ -188,10 +200,10 @@ export default function Home() {
 
       <section className="hero" id="top">
         <div className="hero-copy">
-          <p className="eyebrow"><span>01</span> YOUR INTERNET REFEREE</p>
+          <p className="eyebrow"><span>01</span> FREE MEME REFEREE &amp; FUNNY VAR VERDICT TOOL</p>
           <h1>REF, IS THIS<br /><em>ALLOWED?</em></h1>
           <p className="intro">
-            Drop the evidence—even if it does not contain people. Add a caption for context, then let our wildly overconfident meme referee make the only call that matters.
+            Upload a photo, add context, and get a funny meme verdict for the group chat. Our wildly overconfident referee delivers a no-foul, yellow-card, or red-card call—free, private, and ready for immediate debate.
           </p>
           <div className="legend" aria-label="Possible referee decisions">
             <span><i className="dot green" /> NO FOUL</span>
@@ -205,11 +217,19 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="referee-stamp" aria-hidden="true">
-          <span>OFFICIAL</span>
-          <strong>VAR</strong>
-          <small>VERY ACCURATE REFEREE</small>
-        </div>
+        <figure className="hero-media">
+          <div className="hero-media-frame">
+            <Image
+              src="/og-rizz.png"
+              alt="Illustration of a referee reviewing meme evidence at a VAR monitor while holding yellow and red cards."
+              width={1536}
+              height={1024}
+              sizes="(max-width: 900px) 100vw, 40vw"
+              preload
+            />
+          </div>
+          <figcaption><span>CASE FILE 01</span><span>OFFICIAL REF IMAGERY</span></figcaption>
+        </figure>
       </section>
 
       <section className="review-shell" aria-labelledby="review-title">
@@ -218,7 +238,7 @@ export default function Home() {
             <p className="section-number">02 / REVIEW BOOTH</p>
             <h2 id="review-title">Submit the evidence</h2>
           </div>
-          <p className="privacy-note">Your images stay in this browser.<br />No locker-room leaks.</p>
+          <p className="privacy-note">Photos stay local in this browser.<br />Verdicts use caption cues plus randomness, not image analysis or AI analysis.</p>
         </div>
 
         <div className="review-grid">
@@ -313,7 +333,7 @@ export default function Home() {
               </div>
             )}
 
-            <input ref={inputRef} className="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={handleInput} />
+            <input ref={inputRef} className="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple aria-label="Choose image files" onChange={handleInput} />
             {error && <p className="error-message" role="alert">{error}</p>}
           </div>
 
@@ -375,7 +395,7 @@ export default function Home() {
       <section className="how-section" id="how-it-works">
         <p className="section-number">03 / THE PROTOCOL</p>
         <div className="how-header">
-          <h2>Three steps.<br /><em>One ruling.</em></h2>
+          <h2>How the meme<br />referee <em>works.</em></h2>
           <p>A highly serious process for deeply unserious disputes.</p>
         </div>
         <div className="steps">
@@ -385,10 +405,56 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="uses-section" aria-labelledby="uses-title">
+        <p className="section-number">04 / GROUP-CHAT JURISDICTION</p>
+        <div className="uses-header">
+          <h2 id="uses-title">Every questionable post<br /><em>deserves a verdict.</em></h2>
+          <p>REF? is a free meme verdict generator for the evidence your group chat cannot settle on its own.</p>
+        </div>
+        <div className="use-cases">
+          <article><h3>FIT CHECKS</h3><p>When the outfit is bold enough to require an official review.</p></article>
+          <article><h3>FOOD CRIMES</h3><p>When dinner looks suspicious but the chef refuses to apologize.</p></article>
+          <article><h3>HOT TAKES</h3><p>When a screenshot, sign, purchase, or opinion needs a fictional card.</p></article>
+        </div>
+        <div className="outcome-guide" aria-label="Meme referee verdict guide">
+          <article><i className="dot green" /><h3>No foul</h3><p>Game recognizes game. Play on.</p></article>
+          <article><i className="dot yellow" /><h3>Yellow card</h3><p>Suspicious behavior earns a caution.</p></article>
+          <article><i className="dot red" /><h3>Red card</h3><p>The fictional call is immediate and final.</p></article>
+        </div>
+      </section>
+
+      <section className="faq-section" aria-labelledby="faq-title">
+        <div className="faq-heading">
+          <p className="section-number">05 / QUESTIONS FROM THE TOUCHLINE</p>
+          <h2 id="faq-title">Meme referee FAQ</h2>
+        </div>
+        <div className="faq-list">
+          <details>
+            <summary>What is REF?</summary>
+            <p>REF? is a free browser-based meme referee. Add an image and optional caption, then receive a funny no-foul, yellow-card, or red-card verdict to share with your group chat.</p>
+          </details>
+          <details>
+            <summary>Does REF? upload or analyze my photo?</summary>
+            <p>No. Photos stay local in your browser and are never uploaded or inspected. Verdicts use caption cues plus randomness, not image analysis or AI analysis.</p>
+          </details>
+          <details>
+            <summary>What do the three meme verdicts mean?</summary>
+            <p>No foul means play on, yellow card means suspicious behavior, and red card means the fictional referee has seen enough. Every ruling is for entertainment only.</p>
+          </details>
+          <details>
+            <summary>Which image files can I use?</summary>
+            <p>You can choose up to six JPG, PNG, WEBP, or GIF images, with a maximum size of 10 MB each. A short caption is optional and gives the referee extra context.</p>
+          </details>
+        </div>
+      </section>
+
       <footer>
         <div className="footer-brand">REF?</div>
         <p>BUILT FOR THE GROUP CHAT · NOT AFFILIATED WITH ACTUAL FOOTBALL · DECISIONS ARE FOR MEMES ONLY</p>
-        <a href="#top">BACK TO TOP ↑</a>
+        <div className="footer-actions">
+          <AnalyticsConsentControl />
+          <a href="#top">BACK TO TOP ↑</a>
+        </div>
       </footer>
     </main>
   );
