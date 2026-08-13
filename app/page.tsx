@@ -198,38 +198,39 @@ export default function Home() {
         <a className="how-link" href="#how-it-works">HOW IT WORKS <span aria-hidden="true">↘</span></a>
       </nav>
 
-      <section className="hero" id="top">
-        <div className="hero-copy">
-          <p className="eyebrow"><span>01</span> FREE MEME REFEREE &amp; FUNNY VAR VERDICT TOOL</p>
-          <h1>REF, IS THIS<br /><em>ALLOWED?</em></h1>
-          <p className="intro">
-            Upload a photo, add context, and get a funny meme verdict for the group chat. Our wildly overconfident referee delivers a no-foul, yellow-card, or red-card call—free, private, and ready for immediate debate.
-          </p>
-          <div className="legend" aria-label="Possible referee decisions">
-            <span><i className="dot green" /> NO FOUL</span>
-            <span><i className="dot yellow" /> YELLOW</span>
-            <span><i className="dot red" /> RED</span>
-          </div>
-          <div className="card-meanings" aria-label="Card meanings">
-            <span><i className="dot green" /><strong>NO FOUL</strong><small>GAME RECOGNIZES GAME</small></span>
-            <span><i className="dot yellow" /><strong>YELLOW</strong><small>SUSPICIOUS RIZZ</small></span>
-            <span><i className="dot red" /><strong>RED</strong><small>ILLEGALLY OUTSIDE HIS LEAGUE</small></span>
-          </div>
-        </div>
+      <section className="hero" id="top" aria-labelledby="hero-title">
+        <h1 id="hero-title" className="visually-hidden">Ref, is this allowed?</h1>
 
-        <figure className="hero-media">
-          <div className="hero-media-frame">
+        <figure className="hero-banner">
+          <div className="hero-banner-frame">
             <Image
               src="/og-rizz.png"
-              alt="Illustration of a referee reviewing meme evidence at a VAR monitor while holding yellow and red cards."
+              alt="Referee reviewing meme evidence at a VAR monitor while holding yellow and red cards."
               width={1536}
               height={1024}
-              sizes="(max-width: 900px) 100vw, 40vw"
+              sizes="(max-width: 600px) calc(100vw - 24px), 92vw"
               preload
             />
           </div>
-          <figcaption><span>CASE FILE 01</span><span>OFFICIAL REF IMAGERY</span></figcaption>
+          <figcaption><span>OFFICIAL MEME REFEREE</span><span>VAR BOOTH / ONLINE</span></figcaption>
         </figure>
+
+        <div className="hero-support">
+          <div className="hero-support-copy">
+            <p className="eyebrow"><span>01</span> FREE MEME REFEREE &amp; FUNNY VAR VERDICT TOOL</p>
+            <p className="intro">
+              Upload a photo, add context, and get a wildly overconfident no-foul, yellow-card, or red-card verdict—free, private, and ready for the group chat.
+            </p>
+          </div>
+          <div className="hero-actions">
+            <div className="legend" aria-label="Possible referee decisions">
+              <span><i className="dot green" /> NO FOUL</span>
+              <span><i className="dot yellow" /> YELLOW</span>
+              <span><i className="dot red" /> RED</span>
+            </div>
+            <a className="hero-cta" href="#review-title">SUBMIT EVIDENCE <span aria-hidden="true">↓</span></a>
+          </div>
+        </div>
       </section>
 
       <section className="review-shell" aria-labelledby="review-title">
